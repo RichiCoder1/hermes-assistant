@@ -1,0 +1,57 @@
+{
+  "title": "Hermes Assistant",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Hermes Agent",
+        "description": "Connect Home Assistant to an authenticated Hermes Agent Gateway.",
+        "data": {
+          "base_url": "Gateway base URL",
+          "api_key": "API key"
+        },
+        "data_description": {
+          "base_url": "Include http:// or https:// and any profile path, but not /v1.",
+          "api_key": "The API_SERVER_KEY for this Hermes profile."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Update Hermes API key",
+        "data": {
+          "api_key": "API key"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to a compatible Hermes Agent Gateway.",
+      "invalid_auth": "The Hermes API key was rejected.",
+      "invalid_url": "Enter a complete http:// or https:// URL."
+    },
+    "abort": {
+      "already_configured": "This Hermes gateway is already configured.",
+      "reauth_successful": "Authentication updated successfully."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Hermes voice behavior",
+        "data": {
+          "prompt": "Voice prompt",
+          "timeout": "Request timeout (seconds)",
+          "max_response_chars": "Maximum spoken response characters",
+          "memory_scope": "Hermes memory scope"
+        },
+        "data_description": {
+          "memory_scope": "Conversation is safest for shared voice devices. Device and user scopes allow longer-lived Hermes memory."
+        }
+      }
+    }
+  },
+  "entity": {
+    "conversation": {
+      "hermes_assistant": {
+        "name": "Hermes Assistant"
+      }
+    }
+  }
+}

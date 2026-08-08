@@ -1,0 +1,14 @@
+{
+  "domain": "hermes_assistant",
+  "name": "Hermes Assistant",
+  "after_dependencies": ["assist_pipeline", "intent"],
+  "codeowners": ["@RichiCoder1"],
+  "config_flow": true,
+  "dependencies": ["conversation"],
+  "documentation": "https://github.com/RichiCoder1/hermes-assistant",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/RichiCoder1/hermes-assistant/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
