@@ -40,6 +40,7 @@ and [docs/LIVE_TEST.md](docs/LIVE_TEST.md) for the rollout checklist.
 
 ```powershell
 uv sync --locked
+uv pip install homeassistant==2026.7.3
 uv run pytest -q
 uv run ruff check custom_components tests
 uv run ty check custom_components/hermes_assistant

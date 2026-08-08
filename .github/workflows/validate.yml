@@ -29,6 +29,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
+      - run: uv pip install homeassistant==2026.7.3
       - run: uv run ruff check custom_components tests
       - run: uv run ruff format --check custom_components tests
       - run: uv run ty check custom_components/hermes_assistant
