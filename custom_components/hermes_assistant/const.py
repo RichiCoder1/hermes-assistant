@@ -20,4 +20,4 @@ DEFAULT_PROMPT: Final = (
 DEFAULT_TIMEOUT: Final = 120
 DEFAULT_MAX_RESPONSE_CHARS: Final = 1200
 DEFAULT_MEMORY_SCOPE: Final = "conversation"
-MEMORY_SCOPES: Final = ("conversation", "device", "user", "assistant")
+MEMORY_SCOPES: Final[list[str]] = ["conversation", "device", "user", "assistant"]

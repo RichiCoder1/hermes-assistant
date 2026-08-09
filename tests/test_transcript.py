@@ -2,12 +2,17 @@
 
 from types import SimpleNamespace
 
+from custom_components.hermes_assistant.const import MEMORY_SCOPES
 from custom_components.hermes_assistant.transcript import (
     memory_session_key,
     messages_from_chat_log,
     session_id_value,
     spoken_text,
 )
+
+
+def test_memory_scope_options_use_home_assistant_selector_shape() -> None:
+    assert isinstance(MEMORY_SCOPES, list)
 
 
 def test_messages_include_supported_roles() -> None:
