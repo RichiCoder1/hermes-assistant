@@ -22,6 +22,7 @@ from .const import (
     DEFAULT_PROMPT,
     DOMAIN,
 )
+from .device import gateway_device_info
 from .gateway import HermesAuthenticationError, HermesGatewayError
 from .transcript import (
     memory_session_key,
@@ -53,6 +54,7 @@ class HermesConversationEntity(
     def __init__(self, entry: HermesAssistantConfigEntry) -> None:
         self._entry = entry
         self._attr_unique_id = entry.entry_id
+        self._attr_device_info = gateway_device_info(entry)
 
     @property
     @override
@@ -100,7 +102,7 @@ class HermesConversationEntity(
         )
 
         try:
-            answer = await self._entry.runtime_data.async_complete(
+            answer = await self._entry.runtime_data.client.async_complete(
                 messages_from_chat_log(chat_log.content),
                 session_id=session_id,
                 session_key=session_key,

@@ -48,6 +48,11 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "connectivity": {
+        "name": "Connectivity"
+      }
+    },
     "conversation": {
       "hermes_assistant": {
         "name": "Hermes Assistant"

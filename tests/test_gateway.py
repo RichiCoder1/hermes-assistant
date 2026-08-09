@@ -132,6 +132,29 @@ async def test_validate_rejects_bad_key() -> None:
         await client.async_validate()
 
 
+async def test_health_uses_authenticated_detailed_endpoint() -> None:
+    session = FakeSession(FakeResponse(200, {"status": "degraded"}))
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+
+    result = await client.async_health()
+
+    assert result.status == "degraded"
+    assert session.requests[0]["url"].endswith("/health/detailed")
+    assert session.requests[0]["headers"]["Authorization"] == "Bearer secret"
+
+
+async def test_health_rejects_missing_status() -> None:
+    client = HermesGatewayClient(
+        FakeSession(FakeResponse(200, {"readiness": {}})),
+        "http://hermes:8642",
+        "secret",
+        timeout=10,
+    )
+
+    with pytest.raises(HermesProtocolError):
+        await client.async_health()
+
+
 async def test_complete_sends_transcript_and_session_headers() -> None:
     session = FakeSession(
         FakeResponse(

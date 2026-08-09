@@ -12,6 +12,7 @@ Assistant Voice devices.
   Home Assistant Voice devices.
 - Supports continued conversations and configurable Hermes memory sharing.
 - Provides voice-focused prompt, timeout, and spoken-response controls.
+- Provides a diagnostic connectivity sensor for monitoring and automations.
 - Handles gateway availability and credential changes through Home Assistant.
 
 ## Requirements
