@@ -10,9 +10,9 @@ Assistant Voice devices.
 - Verifies `/v1/capabilities` before accepting the configuration.
 - Sends Home Assistant's current chat transcript to the stateless
   `/v1/chat/completions` endpoint.
-- Uses Hermes-advertised session headers when available.
-- Offers conversation, device, or user memory scope; conversation scope is the
-  privacy-preserving default for shared voice hardware.
+- Separates transcript continuity from Hermes long-term memory scoping.
+- Offers conversation, device, user, or assistant memory scope; conversation
+  scope is the privacy-preserving default for shared voice hardware.
 - Produces concise TTS text while preserving non-Latin languages.
 - Supports reauthentication and configurable prompt, timeout, and spoken length.
 
@@ -36,6 +36,22 @@ Assistant Voice devices.
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Tailscale and HAOS networking
 guidance and [docs/LIVE_TEST.md](docs/LIVE_TEST.md) for the rollout checklist.
+
+## Memory scopes
+
+Hermes Assistant sends an opaque, conversation-specific
+`X-Hermes-Session-Id` for transcript continuity and an independent
+`X-Hermes-Session-Key` for long-term memory:
+
+- `conversation` resets long-term memory with each Home Assistant conversation.
+- `device` shares memory across conversations on one voice device.
+- `user` shares memory for one authenticated Home Assistant user across devices.
+  If no user is available, it safely falls back to conversation scope.
+- `assistant` shares memory across every device and user connected through that
+  Hermes Assistant integration entry.
+
+Session values are hashed before transmission so Home Assistant's raw entry,
+conversation, device, and user identifiers are not disclosed to Hermes.
 
 ## Development
 

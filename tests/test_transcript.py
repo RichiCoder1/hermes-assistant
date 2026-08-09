@@ -3,8 +3,9 @@
 from types import SimpleNamespace
 
 from custom_components.hermes_assistant.transcript import (
+    memory_session_key,
     messages_from_chat_log,
-    scoped_session_value,
+    session_id_value,
     spoken_text,
 )
 
@@ -37,31 +38,64 @@ def test_spoken_text_hard_truncates_when_no_boundary() -> None:
     assert spoken_text("abcdefghijk", 8) == "abcdefg…"
 
 
-def test_session_scope_is_stable_and_opaque() -> None:
-    value = scoped_session_value(
-        "entry", "conversation-secret", "conversation", device_id=None, user_id=None
-    )
-    assert value == scoped_session_value(
-        "entry", "conversation-secret", "conversation", device_id=None, user_id=None
-    )
+def test_session_id_is_conversation_scoped_and_opaque() -> None:
+    value = session_id_value("entry", "conversation-secret")
+    assert value == session_id_value("entry", "conversation-secret")
+    assert value != session_id_value("entry", "another-conversation")
     assert "conversation-secret" not in value
 
 
-def test_device_scope_uses_device_when_available() -> None:
-    first = scoped_session_value(
+def test_conversation_memory_key_is_independent_from_session_id() -> None:
+    key = memory_session_key(
+        "entry", "conversation-secret", "conversation", device_id=None, user_id=None
+    )
+    assert key != session_id_value("entry", "conversation-secret")
+
+
+def test_device_memory_scope_is_stable_across_conversations() -> None:
+    first = memory_session_key(
         "entry", "conversation-a", "device", device_id="kitchen", user_id=None
     )
-    second = scoped_session_value(
+    second = memory_session_key(
         "entry", "conversation-b", "device", device_id="kitchen", user_id=None
     )
     assert first == second
+    assert "kitchen" not in first
 
 
-def test_user_scope_falls_back_to_conversation() -> None:
-    first = scoped_session_value(
+def test_user_memory_scope_is_stable_across_devices() -> None:
+    first = memory_session_key(
+        "entry", "conversation-a", "user", device_id="kitchen", user_id="person"
+    )
+    second = memory_session_key(
+        "entry", "conversation-b", "user", device_id="office", user_id="person"
+    )
+    assert first == second
+    assert "person" not in first
+
+
+def test_assistant_memory_scope_is_stable_across_conversations_and_devices() -> None:
+    first = memory_session_key(
+        "entry", "conversation-a", "assistant", device_id="kitchen", user_id="one"
+    )
+    second = memory_session_key(
+        "entry", "conversation-b", "assistant", device_id="office", user_id="two"
+    )
+    assert first == second
+    assert first != memory_session_key(
+        "another-entry",
+        "conversation-b",
+        "assistant",
+        device_id="office",
+        user_id="two",
+    )
+
+
+def test_user_memory_scope_falls_back_to_conversation() -> None:
+    first = memory_session_key(
         "entry", "conversation-a", "user", device_id="kitchen", user_id=None
     )
-    second = scoped_session_value(
+    second = memory_session_key(
         "entry", "conversation-b", "user", device_id="kitchen", user_id=None
     )
     assert first != second

@@ -23,7 +23,12 @@ from .const import (
     DOMAIN,
 )
 from .gateway import HermesAuthenticationError, HermesGatewayError
-from .transcript import messages_from_chat_log, scoped_session_value, spoken_text
+from .transcript import (
+    memory_session_key,
+    messages_from_chat_log,
+    session_id_value,
+    spoken_text,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,7 +90,8 @@ class HermesConversationEntity(
 
         conversation_id = chat_log.conversation_id
         context = user_input.context
-        session_value = scoped_session_value(
+        session_id = session_id_value(self._entry.entry_id, conversation_id)
+        session_key = memory_session_key(
             self._entry.entry_id,
             conversation_id,
             options.get(CONF_MEMORY_SCOPE, DEFAULT_MEMORY_SCOPE),
@@ -96,8 +102,8 @@ class HermesConversationEntity(
         try:
             answer = await self._entry.runtime_data.async_complete(
                 messages_from_chat_log(chat_log.content),
-                session_id=session_value,
-                session_key=session_value,
+                session_id=session_id,
+                session_key=session_key,
             )
             answer = spoken_text(
                 answer,

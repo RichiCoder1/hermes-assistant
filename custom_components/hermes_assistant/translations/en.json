@@ -42,7 +42,7 @@
           "memory_scope": "Hermes memory scope"
         },
         "data_description": {
-          "memory_scope": "Conversation is safest for shared voice devices. Device and user scopes allow longer-lived Hermes memory."
+          "memory_scope": "Conversation is safest for shared voice devices. Device, user, and assistant scopes persist memory across conversations. Assistant scope shares memory across every device and user connected to this integration."
         }
       }
     }

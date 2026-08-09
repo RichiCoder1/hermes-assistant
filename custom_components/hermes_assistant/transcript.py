@@ -51,7 +51,12 @@ def spoken_text(value: str, max_chars: int) -> str:
     return cleaned[: max_chars - 1].rstrip() + "…"
 
 
-def scoped_session_value(
+def session_id_value(entry_id: str, conversation_id: str) -> str:
+    """Create an opaque transcript session ID for one HA conversation."""
+    return _opaque_session_value(entry_id, "session", conversation_id)
+
+
+def memory_session_key(
     entry_id: str,
     conversation_id: str,
     scope: str,
@@ -59,11 +64,22 @@ def scoped_session_value(
     device_id: str | None,
     user_id: str | None,
 ) -> str:
-    """Create a bounded opaque Hermes session key without exposing HA identifiers."""
+    """Create an opaque long-term memory key at the configured scope."""
     source = conversation_id
     if scope == "device" and device_id:
         source = device_id
     elif scope == "user" and user_id:
         source = user_id
-    digest = hashlib.sha256(f"{entry_id}:{scope}:{source}".encode()).hexdigest()[:32]
-    return f"ha:{scope}:{digest}"
+    elif scope == "assistant":
+        source = "assistant"
+    else:
+        scope = "conversation"
+    return _opaque_session_value(entry_id, f"memory:{scope}", source)
+
+
+def _opaque_session_value(entry_id: str, namespace: str, source: str) -> str:
+    """Hash an HA identifier into a bounded Hermes-safe namespace."""
+    digest = hashlib.sha256(f"{entry_id}:{namespace}:{source}".encode()).hexdigest()[
+        :32
+    ]
+    return f"ha:{namespace}:{digest}"
