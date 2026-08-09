@@ -1,5 +1,7 @@
 # Hermes for Home Assistant 🏠🪽
 
+[![Validate](https://github.com/RichiCoder1/hermes-assistant/actions/workflows/validate.yml/badge.svg)](https://github.com/RichiCoder1/hermes-assistant/actions/workflows/validate.yml)
+
 Hermes Assistant is a Home Assistant custom integration that makes
 a Hermes Agent Gateway available as a conversation agent for Assist and Home
 Assistant Voice devices.
@@ -39,6 +41,17 @@ Choose how broadly Hermes may reuse memory from the integration's **Configure**
 screen. Conversation sharing remains the privacy-preserving default. See
 [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md#memory-scoping) for the exact
 scope behavior and privacy boundaries.
+
+## Support and contributing
+
+Use [Q&A Discussions](https://github.com/RichiCoder1/hermes-assistant/discussions/categories/q-a)
+for setup help and
+[Ideas Discussions](https://github.com/RichiCoder1/hermes-assistant/discussions/categories/ideas)
+for feature proposals. Reserve
+[GitHub Issues](https://github.com/RichiCoder1/hermes-assistant/issues) for
+reproducible bugs. Contributions are welcome; see
+[CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately according to
+[SECURITY.md](SECURITY.md).
 
 ## Development
 

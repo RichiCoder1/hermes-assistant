@@ -1,0 +1,63 @@
+name: Bug report
+description: Report reproducible behavior in Hermes Assistant
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Please remove API keys, access tokens, private hostnames, and personal
+        conversation content before submitting logs.
+  - type: input
+    id: integration_version
+    attributes:
+      label: Hermes Assistant version
+      placeholder: 0.2.2
+    validations:
+      required: true
+  - type: input
+    id: home_assistant_version
+    attributes:
+      label: Home Assistant version
+      placeholder: 2026.7.3
+    validations:
+      required: true
+  - type: input
+    id: hermes_version
+    attributes:
+      label: Hermes Agent version
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the expected and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Configure ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste a minimal, redacted log excerpt if available.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I removed secrets and personal conversation content.
+          required: true
+        - label: I searched existing issues for the same problem.
+          required: true

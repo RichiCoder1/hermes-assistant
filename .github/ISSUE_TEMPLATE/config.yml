@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and setup help
+    url: https://github.com/RichiCoder1/hermes-assistant/discussions/categories/q-a
+    about: Ask usage and setup questions in Q&A Discussions.
+  - name: Feature requests and ideas
+    url: https://github.com/RichiCoder1/hermes-assistant/discussions/categories/ideas
+    about: Propose and discuss new capabilities in Ideas Discussions.
+  - name: Report a security vulnerability
+    url: https://github.com/RichiCoder1/hermes-assistant/security/advisories/new
+    about: Report security issues privately instead of opening a public issue.
