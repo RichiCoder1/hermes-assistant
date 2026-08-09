@@ -8,7 +8,9 @@ body:
     attributes:
       value: >-
         Please remove API keys, access tokens, private hostnames, and personal
-        conversation content before submitting logs.
+        conversation content before submitting logs. Review the contribution
+        guidelines before submitting:
+        https://github.com/RichiCoder1/hermes-assistant/blob/main/CONTRIBUTING.md
   - type: input
     id: integration_version
     attributes:
@@ -60,4 +62,6 @@ body:
         - label: I removed secrets and personal conversation content.
           required: true
         - label: I searched existing issues for the same problem.
+          required: true
+        - label: I reviewed this report and can answer reasonable follow-up questions.
           required: true
