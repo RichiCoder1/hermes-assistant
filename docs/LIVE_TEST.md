@@ -1,7 +1,7 @@
 # Live rollout checklist
 
-1. Confirm `curl` from `homeassistant-1` authenticates to
-   `http://hermes:8642/v1/capabilities`.
+1. Confirm `curl` from the Home Assistant host authenticates to
+   `http://hermes.example-tailnet.ts.net:8642/v1/capabilities`.
 2. Add Hermes Assistant in Home Assistant and confirm it loads without warnings.
 3. Use **Developer tools -> Assist** for a harmless one-turn question.
 4. Ask a two-turn question and confirm context stays within that conversation.

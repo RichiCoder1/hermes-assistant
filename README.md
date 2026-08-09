@@ -29,12 +29,13 @@ Assistant Voice devices.
 3. Install **Hermes Assistant** and restart Home Assistant.
 4. Go to **Settings -> Devices & services -> Add integration** and select
    **Hermes Assistant**.
-5. Enter the gateway base URL (for example, `http://hermes:8642`) and API key.
+5. Enter the gateway base URL (for example,
+   `http://hermes.example-tailnet.ts.net:8642`) and API key.
 6. Edit the Assist pipeline assigned to the voice device and choose
    **Hermes Assistant** as its conversation agent.
 
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the recommended Tailscale policy
-and [docs/LIVE_TEST.md](docs/LIVE_TEST.md) for the rollout checklist.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Tailscale and HAOS networking
+guidance and [docs/LIVE_TEST.md](docs/LIVE_TEST.md) for the rollout checklist.
 
 ## Development
 
