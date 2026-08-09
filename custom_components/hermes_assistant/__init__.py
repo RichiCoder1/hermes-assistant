@@ -19,7 +19,7 @@ from .gateway import (
     HermesGatewayError,
 )
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.CONVERSATION]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.CONVERSATION, Platform.SENSOR]
 
 
 @dataclass(slots=True)

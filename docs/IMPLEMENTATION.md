@@ -15,6 +15,11 @@ Home Assistant owns the HTTP session and reloads the integration after options
 change. Authentication failures start Home Assistant's reauthentication flow;
 temporary gateway failures mark the conversation entity unavailable.
 
+The reconfigure flow validates replacement connection details before updating
+the config entry. Leaving its API-key field blank preserves the stored key. The
+entry's URL-derived unique ID and title change with the validated base URL, and
+Home Assistant reloads the entry only after the update succeeds.
+
 ## Service device and health
 
 Each config entry creates one Home Assistant service device representing the
@@ -31,6 +36,24 @@ the API connection itself is established. Authentication, connection, or
 protocol failures make the connectivity sensor report disconnected. The sensor
 remains available so a failed request is represented as an actionable off state
 rather than an unknown or unavailable entity.
+
+The diagnostic readiness enum sensor exposes `ok` or `degraded` from the same
+cached health response. Transport, authentication, and protocol failures make
+the readiness sensor unavailable. Any future status that the integration does
+not recognize is represented as `unknown`, with the original value retained in
+the `gateway_status` state attribute.
+
+## Diagnostics and System Health
+
+Config-entry diagnostics include redacted connection data, non-secret options,
+the validated capability subset, and the cached health result. The base URL and
+API key are both redacted because private network addresses and tailnet hostnames
+may identify a user's environment.
+
+The System Health platform summarizes configured and connected gateways, their
+hosts and models, readiness states, and the last successful health-check times.
+It reads only loaded config entries and coordinator state; opening System Health
+or downloading diagnostics does not make another gateway request.
 
 ## Conversation requests
 

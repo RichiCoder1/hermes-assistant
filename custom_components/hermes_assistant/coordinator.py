@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -39,11 +39,14 @@ class HermesHealthCoordinator(DataUpdateCoordinator[GatewayHealth]):
             always_update=False,
         )
         self._client = client
+        self.last_successful_update: datetime | None = None
 
     async def _async_update_data(self) -> GatewayHealth:
         """Fetch the latest authenticated gateway health."""
         try:
-            return await self._client.async_health()
+            health = await self._client.async_health()
+            self.last_successful_update = datetime.now(UTC)
+            return health
         except HermesAuthenticationError as err:
             raise ConfigEntryAuthFailed from err
         except HermesGatewayError as err:
