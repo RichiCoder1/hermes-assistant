@@ -35,6 +35,13 @@ class GatewayCapabilities:
     session_key_header: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class GatewayHealth:
+    """Validated gateway health status."""
+
+    status: str
+
+
 def normalize_base_url(value: str) -> str:
     """Return a validated gateway base URL without a trailing slash."""
     candidate = value.strip().rstrip("/")
@@ -146,6 +153,14 @@ class HermesGatewayClient:
         if not isinstance(content, str) or not content.strip():
             raise HermesProtocolError("Hermes returned an empty response")
         return content.strip()
+
+    async def async_health(self) -> GatewayHealth:
+        """Return authenticated gateway readiness status."""
+        payload = await self._request_json("GET", "/health/detailed")
+        status = payload.get("status")
+        if not isinstance(status, str) or not status.strip():
+            raise HermesProtocolError("Hermes returned invalid health status")
+        return GatewayHealth(status=status.strip())
 
     async def _request_json(
         self,

@@ -15,6 +15,23 @@ Home Assistant owns the HTTP session and reloads the integration after options
 change. Authentication failures start Home Assistant's reauthentication flow;
 temporary gateway failures mark the conversation entity unavailable.
 
+## Service device and health
+
+Each config entry creates one Home Assistant service device representing the
+configured Hermes Agent Gateway. The conversation entity and diagnostic
+connectivity binary sensor share this device, giving gateway-level capabilities
+and status one place in the device registry. The service device deliberately
+omits a configuration URL because the configured API endpoint is not necessarily
+a browser-accessible Hermes dashboard.
+
+After setup validation succeeds, a coordinator makes an authenticated request to
+`/health/detailed` every 60 seconds while the connectivity entity is loaded. Any
+valid detailed-health response, including a `degraded` readiness status, means
+the API connection itself is established. Authentication, connection, or
+protocol failures make the connectivity sensor report disconnected. The sensor
+remains available so a failed request is represented as an actionable off state
+rather than an unknown or unavailable entity.
+
 ## Conversation requests
 
 Hermes Assistant converts the current Home Assistant `ChatLog` into
