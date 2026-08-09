@@ -39,10 +39,10 @@
           "prompt": "Voice prompt",
           "timeout": "Request timeout (seconds)",
           "max_response_chars": "Maximum spoken response characters",
-          "memory_scope": "Hermes memory scope"
+          "memory_scope": "Memory sharing"
         },
         "data_description": {
-          "memory_scope": "Conversation is safest for shared voice devices. Device, user, and assistant scopes persist memory across conversations. Assistant scope shares memory across every device and user connected to this integration."
+          "memory_scope": "Choose how broadly Hermes may reuse memory. Conversation is the privacy-preserving default; see the implementation guide for exact behavior."
         }
       }
     }
