@@ -1,6 +1,6 @@
 # Hermes Assistant
 
-Hermes Assistant is an independent Home Assistant custom integration that makes
+Hermes Assistant is a Home Assistant custom integration that makes
 a Hermes Agent Gateway available as a conversation agent for Assist and Home
 Assistant Voice devices.
 
@@ -35,7 +35,7 @@ Assistant Voice devices.
    **Hermes Assistant** as its conversation agent.
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Tailscale and HAOS networking
-guidance and [docs/LIVE_TEST.md](docs/LIVE_TEST.md) for the rollout checklist.
+guidance.
 
 ## Memory scopes
 
