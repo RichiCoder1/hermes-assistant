@@ -1,4 +1,4 @@
-# Hermes Assistant
+# Hermes for Home Assistant 🏠🪽
 
 Hermes Assistant is a Home Assistant custom integration that makes
 a Hermes Agent Gateway available as a conversation agent for Assist and Home
