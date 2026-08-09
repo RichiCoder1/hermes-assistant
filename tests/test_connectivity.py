@@ -7,6 +7,7 @@ from typing import Any, cast
 
 import pytest
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import EntityCategory
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.device_registry import DeviceEntryType
@@ -22,6 +23,7 @@ from custom_components.hermes_assistant.gateway import (
     HermesAuthenticationError,
     HermesConnectionError,
 )
+from custom_components.hermes_assistant.sensor import HermesReadinessSensor
 
 
 class FakeHealthClient:
@@ -44,8 +46,10 @@ def _coordinator(result: GatewayHealth | Exception) -> HermesHealthCoordinator:
     )
 
 
-def _entry(*, connected: bool = True) -> SimpleNamespace:
-    coordinator = SimpleNamespace(last_update_success=connected)
+def _entry(*, connected: bool = True, status: str = "ok") -> SimpleNamespace:
+    coordinator = SimpleNamespace(
+        data=GatewayHealth(status=status), last_update_success=connected
+    )
     return SimpleNamespace(
         entry_id="entry-id",
         title="Hermes voice",
@@ -78,10 +82,28 @@ def test_connectivity_reports_coordinator_result_without_becoming_unavailable() 
     assert entity.available is True
 
 
+def test_readiness_reports_detailed_health_status() -> None:
+    entity = HermesReadinessSensor(_entry(status="degraded"))
+
+    assert entity.native_value == "degraded"
+    assert entity.extra_state_attributes is None
+    assert entity._attr_device_class == SensorDeviceClass.ENUM
+    assert entity._attr_entity_category == EntityCategory.DIAGNOSTIC
+    assert entity._attr_unique_id == "entry-id_readiness"
+
+
+def test_readiness_preserves_unrecognized_status() -> None:
+    entity = HermesReadinessSensor(_entry(status="starting"))
+
+    assert entity.native_value == "unknown"
+    assert entity.extra_state_attributes == {"gateway_status": "starting"}
+
+
 async def test_coordinator_returns_gateway_health() -> None:
     coordinator = _coordinator(GatewayHealth(status="degraded"))
 
     assert await coordinator._async_update_data() == GatewayHealth(status="degraded")
+    assert coordinator.last_successful_update is not None
 
 
 async def test_coordinator_requests_reauthentication() -> None:

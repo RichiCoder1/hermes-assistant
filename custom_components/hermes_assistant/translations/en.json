@@ -19,6 +19,18 @@
         "data": {
           "api_key": "API key"
         }
+      },
+      "reconfigure": {
+        "title": "Update Hermes gateway connection",
+        "description": "Change the address or credentials for this Hermes Agent Gateway.",
+        "data": {
+          "base_url": "Gateway base URL",
+          "api_key": "New API key (optional)"
+        },
+        "data_description": {
+          "base_url": "Include http:// or https:// and any profile path, but not /v1.",
+          "api_key": "Leave blank to keep the current API key."
+        }
       }
     },
     "error": {
@@ -28,7 +40,8 @@
     },
     "abort": {
       "already_configured": "This Hermes gateway is already configured.",
-      "reauth_successful": "Authentication updated successfully."
+      "reauth_successful": "Authentication updated successfully.",
+      "reconfigure_successful": "Gateway connection updated successfully."
     }
   },
   "options": {
@@ -53,10 +66,27 @@
         "name": "Connectivity"
       }
     },
+    "sensor": {
+      "readiness": {
+        "name": "Readiness",
+        "state": {
+          "ok": "Ready",
+          "degraded": "Degraded",
+          "unknown": "Unknown"
+        }
+      }
+    },
     "conversation": {
       "hermes_assistant": {
         "name": "Hermes Assistant"
       }
+    }
+  },
+  "system_health": {
+    "info": {
+      "configured_gateways": "Configured gateways",
+      "connected_gateways": "Connected gateways",
+      "gateways": "Gateways"
     }
   }
 }
