@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 from enum import StrEnum
 from types import ModuleType
 
@@ -14,9 +15,11 @@ exceptions = ModuleType("homeassistant.exceptions")
 helpers = ModuleType("homeassistant.helpers")
 aiohttp_client = ModuleType("homeassistant.helpers.aiohttp_client")
 components = ModuleType("homeassistant.components")
+conversation = ModuleType("homeassistant.components.conversation")
 binary_sensor = ModuleType("homeassistant.components.binary_sensor")
 sensor = ModuleType("homeassistant.components.sensor")
 system_health = ModuleType("homeassistant.components.system_health")
+intent = ModuleType("homeassistant.helpers.intent")
 device_registry = ModuleType("homeassistant.helpers.device_registry")
 entity_platform = ModuleType("homeassistant.helpers.entity_platform")
 redact = ModuleType("homeassistant.helpers.redact")
@@ -68,6 +71,48 @@ class ConfigEntryAuthFailed(Exception):
 
 class ConfigEntryNotReady(Exception):
     """Import-only stand-in."""
+
+
+class ConversationEntity:
+    """Small conversation entity stand-in."""
+
+    available = True
+
+    def async_write_ha_state(self) -> None:
+        """Accept state writes from the entity under test."""
+
+
+class AbstractConversationAgent:
+    """Import-only stand-in."""
+
+
+@dataclass
+class AssistantContent:
+    """Minimal assistant content value."""
+
+    agent_id: str
+    content: str | None = None
+
+
+class ConverseError(Exception):
+    """Import-only stand-in."""
+
+
+class IntentResponseErrorCode(StrEnum):
+    """Minimal intent error codes."""
+
+    UNKNOWN = "unknown"
+
+
+class IntentResponse:
+    """Minimal intent response value."""
+
+    def __init__(self, *, language: str) -> None:
+        self.language = language
+
+    def async_set_error(self, code: IntentResponseErrorCode, message: str) -> None:
+        self.error_code = code
+        self.error_message = message
 
 
 class BinarySensorEntity:
@@ -129,11 +174,21 @@ def async_redact_data(
 config_entries.ConfigEntry = ConfigEntry
 const.Platform = Platform
 const.EntityCategory = EntityCategory
+const.MATCH_ALL = "*"
 core.HomeAssistant = HomeAssistant
 core.callback = callback
 exceptions.ConfigEntryAuthFailed = ConfigEntryAuthFailed
 exceptions.ConfigEntryNotReady = ConfigEntryNotReady
 aiohttp_client.async_get_clientsession = lambda hass: None
+conversation.ConversationEntity = ConversationEntity
+conversation.AbstractConversationAgent = AbstractConversationAgent
+conversation.AssistantContent = AssistantContent
+conversation.ConverseError = ConverseError
+conversation.async_set_agent = lambda *args: None
+conversation.async_unset_agent = lambda *args: None
+conversation.async_get_result_from_chat_log = lambda user_input, chat_log: chat_log
+intent.IntentResponse = IntentResponse
+intent.IntentResponseErrorCode = IntentResponseErrorCode
 binary_sensor.BinarySensorDeviceClass = BinarySensorDeviceClass
 binary_sensor.BinarySensorEntity = BinarySensorEntity
 sensor.SensorDeviceClass = SensorDeviceClass
@@ -146,12 +201,15 @@ redact.async_redact_data = async_redact_data
 update_coordinator.CoordinatorEntity = CoordinatorEntity
 update_coordinator.DataUpdateCoordinator = DataUpdateCoordinator
 update_coordinator.UpdateFailed = UpdateFailed
+components.conversation = conversation
+helpers.intent = intent
 
 sys.modules.update(
     {
         "homeassistant": homeassistant,
         "homeassistant.config_entries": config_entries,
         "homeassistant.components": components,
+        "homeassistant.components.conversation": conversation,
         "homeassistant.components.binary_sensor": binary_sensor,
         "homeassistant.components.sensor": sensor,
         "homeassistant.components.system_health": system_health,
@@ -162,6 +220,7 @@ sys.modules.update(
         "homeassistant.helpers.aiohttp_client": aiohttp_client,
         "homeassistant.helpers.device_registry": device_registry,
         "homeassistant.helpers.entity_platform": entity_platform,
+        "homeassistant.helpers.intent": intent,
         "homeassistant.helpers.redact": redact,
         "homeassistant.helpers.update_coordinator": update_coordinator,
     }

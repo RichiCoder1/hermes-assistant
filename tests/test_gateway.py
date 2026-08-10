@@ -311,6 +311,42 @@ async def test_stream_complete_rejects_terminal_error_finish_reason() -> None:
             pass
 
 
+async def test_stream_complete_rejects_top_level_error_event() -> None:
+    session = FakeSession(
+        FakeResponse(200, capabilities(chat_completions_streaming=True)),
+        FakeStreamResponse(
+            200,
+            sse_body(
+                '{"choices":[{"delta":{"content":"partial"}}]}',
+                '{"error":{"message":"agent failed"}}',
+                "[DONE]",
+            ),
+        ),
+    )
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+    with pytest.raises(HermesProtocolError, match="streaming error"):
+        async for _ in client.async_stream_complete(
+            [], session_id="a", session_key="a"
+        ):
+            pass
+
+
+async def test_stream_complete_rejects_end_of_file_before_done() -> None:
+    session = FakeSession(
+        FakeResponse(200, capabilities(chat_completions_streaming=True)),
+        FakeStreamResponse(
+            200,
+            sse_body('{"choices":[{"delta":{"content":"partial"}}]}'),
+        ),
+    )
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+    with pytest.raises(HermesProtocolError, match="ended before completion"):
+        async for _ in client.async_stream_complete(
+            [], session_id="a", session_key="a"
+        ):
+            pass
+
+
 async def test_stream_complete_rejects_bad_chunk() -> None:
     session = FakeSession(
         FakeResponse(200, capabilities(chat_completions_streaming=True)),
