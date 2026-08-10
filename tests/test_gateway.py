@@ -14,6 +14,11 @@ from custom_components.hermes_assistant.gateway import (
 )
 
 
+def sse_body(*events: str) -> list[bytes]:
+    """Encode SSE `data:` lines the way aiohttp's StreamReader yields them."""
+    return [f"data: {event}\n".encode() for event in events]
+
+
 class FakeResponse:
     def __init__(self, status: int, payload: object) -> None:
         self.status = status
@@ -31,12 +36,39 @@ class FakeResponse:
         return self.payload
 
 
+class FakeStreamContent:
+    def __init__(self, lines: list[bytes]) -> None:
+        self._lines = lines
+
+    def __aiter__(self) -> FakeStreamContent:
+        return self
+
+    async def __anext__(self) -> bytes:
+        if not self._lines:
+            raise StopAsyncIteration
+        return self._lines.pop(0)
+
+
+class FakeStreamResponse:
+    def __init__(self, status: int, lines: list[bytes]) -> None:
+        self.status = status
+        self.content = FakeStreamContent(lines)
+
+    async def __aenter__(self) -> FakeStreamResponse:
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+
 class FakeSession:
-    def __init__(self, *responses: FakeResponse) -> None:
+    def __init__(self, *responses: FakeResponse | FakeStreamResponse) -> None:
         self.responses = list(responses)
         self.requests: list[dict[str, Any]] = []
 
-    def request(self, method: str, url: str, **kwargs: Any) -> FakeResponse:
+    def request(
+        self, method: str, url: str, **kwargs: Any
+    ) -> FakeResponse | FakeStreamResponse:
         self.requests.append({"method": method, "url": url, **kwargs})
         return self.responses.pop(0)
 
@@ -192,3 +224,150 @@ async def test_complete_rejects_empty_content() -> None:
     client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
     with pytest.raises(HermesProtocolError):
         await client.async_complete([], session_id="a", session_key="a")
+
+
+async def test_validate_detects_streaming_support() -> None:
+    client = HermesGatewayClient(
+        FakeSession(FakeResponse(200, capabilities(chat_completions_streaming=True))),
+        "http://hermes:8642",
+        "secret",
+        timeout=10,
+    )
+    result = await client.async_validate()
+    assert result.supports_streaming is True
+
+
+async def test_validate_defaults_streaming_to_unsupported() -> None:
+    client = HermesGatewayClient(
+        FakeSession(FakeResponse(200, capabilities())),
+        "http://hermes:8642",
+        "secret",
+        timeout=10,
+    )
+    result = await client.async_validate()
+    assert result.supports_streaming is False
+
+
+async def test_stream_complete_yields_deltas_and_stops_on_done() -> None:
+    session = FakeSession(
+        FakeResponse(
+            200,
+            capabilities(
+                chat_completions_streaming=True,
+                session_continuity_header="X-Hermes-Session-Id",
+                session_key_header="X-Hermes-Session-Key",
+            ),
+        ),
+        FakeStreamResponse(
+            200,
+            sse_body(
+                '{"choices":[{"delta":{"role":"assistant"}}]}',
+                '{"choices":[{"delta":{"content":"Hel"}}]}',
+                '{"choices":[{"delta":{"content":"lo"}}]}',
+                '{"choices":[],"usage":{"total_tokens":5}}',
+                "[DONE]",
+                '{"choices":[{"delta":{"content":"ignored"}}]}',
+            ),
+        ),
+    )
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+    messages = [{"role": "user", "content": "Hi"}]
+
+    chunks = [
+        chunk
+        async for chunk in client.async_stream_complete(
+            messages, session_id="session-a", session_key="scope-a"
+        )
+    ]
+
+    assert chunks == ["Hel", "lo"]
+    request = session.requests[1]
+    assert request["json"] == {
+        "model": "voice",
+        "messages": messages,
+        "stream": True,
+    }
+    assert request["headers"]["X-Hermes-Session-Id"] == "session-a"
+    assert request["headers"]["X-Hermes-Session-Key"] == "scope-a"
+
+
+async def test_stream_complete_rejects_terminal_error_finish_reason() -> None:
+    session = FakeSession(
+        FakeResponse(200, capabilities(chat_completions_streaming=True)),
+        FakeStreamResponse(
+            200,
+            sse_body(
+                '{"choices":[{"delta":{"content":"partial"}}]}',
+                '{"choices":[{"delta":{},"finish_reason":"error"}]}',
+                "[DONE]",
+            ),
+        ),
+    )
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+    with pytest.raises(HermesProtocolError):
+        async for _ in client.async_stream_complete(
+            [], session_id="a", session_key="a"
+        ):
+            pass
+
+
+async def test_stream_complete_rejects_top_level_error_event() -> None:
+    session = FakeSession(
+        FakeResponse(200, capabilities(chat_completions_streaming=True)),
+        FakeStreamResponse(
+            200,
+            sse_body(
+                '{"choices":[{"delta":{"content":"partial"}}]}',
+                '{"error":{"message":"agent failed"}}',
+                "[DONE]",
+            ),
+        ),
+    )
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+    with pytest.raises(HermesProtocolError, match="streaming error"):
+        async for _ in client.async_stream_complete(
+            [], session_id="a", session_key="a"
+        ):
+            pass
+
+
+async def test_stream_complete_rejects_end_of_file_before_done() -> None:
+    session = FakeSession(
+        FakeResponse(200, capabilities(chat_completions_streaming=True)),
+        FakeStreamResponse(
+            200,
+            sse_body('{"choices":[{"delta":{"content":"partial"}}]}'),
+        ),
+    )
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+    with pytest.raises(HermesProtocolError, match="ended before completion"):
+        async for _ in client.async_stream_complete(
+            [], session_id="a", session_key="a"
+        ):
+            pass
+
+
+async def test_stream_complete_rejects_bad_chunk() -> None:
+    session = FakeSession(
+        FakeResponse(200, capabilities(chat_completions_streaming=True)),
+        FakeStreamResponse(200, sse_body("not json")),
+    )
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+    with pytest.raises(HermesProtocolError):
+        async for _ in client.async_stream_complete(
+            [], session_id="a", session_key="a"
+        ):
+            pass
+
+
+async def test_stream_complete_rejects_auth_failure() -> None:
+    session = FakeSession(
+        FakeResponse(200, capabilities(chat_completions_streaming=True)),
+        FakeStreamResponse(401, []),
+    )
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+    with pytest.raises(HermesAuthenticationError):
+        async for _ in client.async_stream_complete(
+            [], session_id="a", session_key="a"
+        ):
+            pass

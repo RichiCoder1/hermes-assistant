@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from typing import Literal, override
 
 from homeassistant.components import conversation
@@ -23,7 +24,7 @@ from .const import (
     DOMAIN,
 )
 from .device import gateway_device_info
-from .gateway import HermesAuthenticationError, HermesGatewayError
+from .gateway import HermesAuthenticationError, HermesGatewayClient, HermesGatewayError
 from .transcript import (
     memory_session_key,
     messages_from_chat_log,
@@ -50,6 +51,7 @@ class HermesConversationEntity(
 
     _attr_has_entity_name = True
     _attr_name = DEFAULT_NAME
+    _attr_supports_streaming = True
 
     def __init__(self, entry: HermesAssistantConfigEntry) -> None:
         self._entry = entry
@@ -101,18 +103,32 @@ class HermesConversationEntity(
             user_id=context.user_id if context else None,
         )
 
+        client = self._entry.runtime_data.client
+        messages = messages_from_chat_log(chat_log.content)
+        max_chars = options.get(CONF_MAX_RESPONSE_CHARS, DEFAULT_MAX_RESPONSE_CHARS)
+
         try:
-            answer = await self._entry.runtime_data.client.async_complete(
-                messages_from_chat_log(chat_log.content),
-                session_id=session_id,
-                session_key=session_key,
-            )
-            answer = spoken_text(
-                answer,
-                options.get(CONF_MAX_RESPONSE_CHARS, DEFAULT_MAX_RESPONSE_CHARS),
-            )
-            if not answer:
-                raise HermesGatewayError("Hermes returned no speakable text")
+            capabilities = client.capabilities or await client.async_validate()
+            if capabilities.supports_streaming:
+                await self._async_stream_response(
+                    chat_log,
+                    user_input,
+                    client,
+                    messages,
+                    session_id=session_id,
+                    session_key=session_key,
+                    max_chars=max_chars,
+                )
+            else:
+                await self._async_complete_response(
+                    chat_log,
+                    user_input,
+                    client,
+                    messages,
+                    session_id=session_id,
+                    session_key=session_key,
+                    max_chars=max_chars,
+                )
         except HermesAuthenticationError:
             self._attr_available = False
             self.async_write_ha_state()
@@ -131,10 +147,83 @@ class HermesConversationEntity(
         if not self.available:
             self._attr_available = True
             self.async_write_ha_state()
+        return conversation.async_get_result_from_chat_log(user_input, chat_log)
+
+    async def _async_complete_response(
+        self,
+        chat_log: conversation.ChatLog,
+        user_input: conversation.ConversationInput,
+        client: HermesGatewayClient,
+        messages: list[dict[str, str]],
+        *,
+        session_id: str,
+        session_key: str,
+        max_chars: int,
+    ) -> None:
+        """Fetch one full Hermes response and add it to the chat log.
+
+        Used when the gateway does not advertise streaming support.
+        """
+        answer = await client.async_complete(
+            messages, session_id=session_id, session_key=session_key
+        )
+        answer = spoken_text(answer, max_chars)
+        if not answer:
+            raise HermesGatewayError("Hermes returned no speakable text")
         chat_log.async_add_assistant_content_without_tools(
             conversation.AssistantContent(agent_id=user_input.agent_id, content=answer)
         )
-        return conversation.async_get_result_from_chat_log(user_input, chat_log)
+
+    async def _async_stream_response(
+        self,
+        chat_log: conversation.ChatLog,
+        user_input: conversation.ConversationInput,
+        client: HermesGatewayClient,
+        messages: list[dict[str, str]],
+        *,
+        session_id: str,
+        session_key: str,
+        max_chars: int,
+    ) -> None:
+        """Stream a Hermes response into the chat log as deltas arrive."""
+        chunks = client.async_stream_complete(
+            messages, session_id=session_id, session_key=session_key
+        )
+        spoke = False
+        async for content in chat_log.async_add_delta_content_stream(
+            user_input.agent_id, _stream_deltas(chunks, max_chars)
+        ):
+            if (
+                isinstance(content, conversation.AssistantContent)
+                and content.content
+                and content.content.strip()
+            ):
+                spoke = True
+        if not spoke:
+            raise HermesGatewayError("Hermes returned no speakable text")
+
+
+async def _stream_deltas(
+    chunks: AsyncIterator[str], max_chars: int
+) -> AsyncIterator[conversation.AssistantContentDeltaDict]:
+    """Turn raw Hermes text chunks into Home Assistant assistant deltas.
+
+    Caps total emitted text at `max_chars`, matching the non-streaming
+    path's response length limit. Unlike `spoken_text`, this does not
+    clean up markdown or emoji mid-stream: doing that safely requires
+    seeing the whole response (e.g. matched code fences), which streaming
+    does not provide.
+    """
+    yield {"role": "assistant"}
+    emitted = 0
+    async for chunk in chunks:
+        if emitted >= max_chars:
+            break
+        remaining = max_chars - emitted
+        if len(chunk) > remaining:
+            chunk = chunk[:remaining]
+        emitted += len(chunk)
+        yield {"content": chunk}
 
 
 def _error_result(

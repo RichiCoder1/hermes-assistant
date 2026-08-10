@@ -26,6 +26,7 @@ def _entry() -> SimpleNamespace:
         model="hermes-agent",
         session_id_header="X-Hermes-Session-Id",
         session_key_header="X-Hermes-Session-Key",
+        supports_streaming=True,
     )
     return SimpleNamespace(
         entry_id="entry-id",

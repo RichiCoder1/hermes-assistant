@@ -62,9 +62,15 @@ system/user/assistant messages and sends the complete transcript to the
 stateless `/v1/chat/completions` endpoint. The model and session-header names
 come from the gateway's capability response.
 
-The response is reduced to predictable spoken text by removing Markdown and
-emoji, normalizing whitespace, and applying the configured length limit. This
-processing preserves non-Latin text.
+When the gateway does not advertise streaming, the completed response is reduced
+to predictable spoken text by removing Markdown and emoji, normalizing
+whitespace, and applying the configured length limit. This processing preserves
+non-Latin text.
+
+When the gateway advertises streaming, Hermes Assistant forwards text deltas to
+Home Assistant as they arrive and applies the configured limit cumulatively.
+Markdown and emoji are not removed mid-stream because safe cleanup requires the
+complete response, such as when matching code fences.
 
 ## Memory scoping
 
