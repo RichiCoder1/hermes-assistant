@@ -275,13 +275,16 @@ async def _iter_sse_content_deltas(
             # Trailing usage-only chunks carry no choices; nothing to emit.
             continue
         try:
-            delta = choices[0]["delta"]
+            choice = choices[0]
+            delta = choice["delta"]
         except (KeyError, IndexError, TypeError) as err:
             raise HermesProtocolError(
                 "Hermes returned an invalid stream chunk"
             ) from err
         if not isinstance(delta, dict):
             raise HermesProtocolError("Hermes returned an invalid stream chunk")
+        if choice.get("finish_reason") == "error":
+            raise HermesProtocolError("Hermes reported a streaming error")
         text = delta.get("content")
         if isinstance(text, str) and text:
             yield text

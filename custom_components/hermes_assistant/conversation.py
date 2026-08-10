@@ -189,18 +189,17 @@ class HermesConversationEntity(
         chunks = client.async_stream_complete(
             messages, session_id=session_id, session_key=session_key
         )
-        results = [
-            content
-            async for content in chat_log.async_add_delta_content_stream(
-                user_input.agent_id, _stream_deltas(chunks, max_chars)
-            )
-        ]
-        spoken = "".join(
-            item.content or ""
-            for item in results
-            if isinstance(item, conversation.AssistantContent)
-        ).strip()
-        if not spoken:
+        spoke = False
+        async for content in chat_log.async_add_delta_content_stream(
+            user_input.agent_id, _stream_deltas(chunks, max_chars)
+        ):
+            if (
+                isinstance(content, conversation.AssistantContent)
+                and content.content
+                and content.content.strip()
+            ):
+                spoke = True
+        if not spoke:
             raise HermesGatewayError("Hermes returned no speakable text")
 
 
