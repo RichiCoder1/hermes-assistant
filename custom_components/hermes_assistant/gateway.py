@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -33,6 +35,7 @@ class GatewayCapabilities:
     model: str
     session_id_header: str | None
     session_key_header: str | None
+    supports_streaming: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +122,7 @@ class HermesGatewayClient:
                 features.get("session_continuity_header")
             ),
             session_key_header=_optional_header(features.get("session_key_header")),
+            supports_streaming=features.get("chat_completions_streaming") is True,
         )
         self.capabilities = capabilities
         return capabilities
@@ -153,6 +157,52 @@ class HermesGatewayClient:
         if not isinstance(content, str) or not content.strip():
             raise HermesProtocolError("Hermes returned an empty response")
         return content.strip()
+
+    async def async_stream_complete(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        session_id: str,
+        session_key: str,
+    ) -> AsyncIterator[str]:
+        """Send a complete stateless transcript and stream text deltas back.
+
+        Callers should only use this when
+        `GatewayCapabilities.supports_streaming` is true; falling back to
+        `async_complete` is the caller's responsibility otherwise.
+        """
+        capabilities = self.capabilities or await self.async_validate()
+        headers: dict[str, str] = {"Accept": "text/event-stream"}
+        if capabilities.session_id_header:
+            headers[capabilities.session_id_header] = session_id
+        if capabilities.session_key_header:
+            headers[capabilities.session_key_header] = session_key
+        request_headers = {**self._headers, **headers}
+
+        try:
+            async with asyncio.timeout(self.timeout):
+                async with self._session.request(
+                    "POST",
+                    self._url("/v1/chat/completions"),
+                    headers=request_headers,
+                    json={
+                        "model": capabilities.model,
+                        "messages": messages,
+                        "stream": True,
+                    },
+                ) as response:
+                    if response.status in {401, 403}:
+                        raise HermesAuthenticationError("Hermes rejected the API key")
+                    if response.status >= 400:
+                        raise HermesConnectionError(
+                            f"Hermes returned HTTP {response.status}"
+                        )
+                    async for delta in _iter_sse_content_deltas(response.content):
+                        yield delta
+        except HermesGatewayError:
+            raise
+        except (TimeoutError, aiohttp.ClientError) as err:
+            raise HermesConnectionError("Unable to reach Hermes") from err
 
     async def async_health(self) -> GatewayHealth:
         """Return authenticated gateway readiness status."""
@@ -199,6 +249,42 @@ class HermesGatewayClient:
         if not isinstance(payload, dict):
             raise HermesProtocolError("Hermes returned a non-object JSON response")
         return payload
+
+
+async def _iter_sse_content_deltas(
+    content: aiohttp.StreamReader,
+) -> AsyncIterator[str]:
+    """Parse an OpenAI-compatible chat completion SSE stream into text deltas."""
+    async for raw_line in content:
+        line = raw_line.decode("utf-8", errors="replace").strip()
+        if not line or not line.startswith("data:"):
+            continue
+        data = line[len("data:") :].strip()
+        if data == "[DONE]":
+            return
+        try:
+            event = json.loads(data)
+        except ValueError as err:
+            raise HermesProtocolError(
+                "Hermes returned an invalid stream chunk"
+            ) from err
+        if not isinstance(event, dict):
+            raise HermesProtocolError("Hermes returned an invalid stream chunk")
+        choices = event.get("choices")
+        if not choices:
+            # Trailing usage-only chunks carry no choices; nothing to emit.
+            continue
+        try:
+            delta = choices[0]["delta"]
+        except (KeyError, IndexError, TypeError) as err:
+            raise HermesProtocolError(
+                "Hermes returned an invalid stream chunk"
+            ) from err
+        if not isinstance(delta, dict):
+            raise HermesProtocolError("Hermes returned an invalid stream chunk")
+        text = delta.get("content")
+        if isinstance(text, str) and text:
+            yield text
 
 
 def _optional_header(value: object) -> str | None:
