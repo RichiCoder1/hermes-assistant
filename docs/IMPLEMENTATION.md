@@ -70,7 +70,9 @@ non-Latin text.
 When the gateway advertises streaming, Hermes Assistant forwards text deltas to
 Home Assistant as they arrive and applies the configured limit cumulatively.
 Markdown and emoji are not removed mid-stream because safe cleanup requires the
-complete response, such as when matching code fences.
+complete response, such as when matching code fences. SSE comments and Hermes
+tool-progress events are transport metadata and are not added to the Home
+Assistant conversation.
 
 ## Memory scoping
 

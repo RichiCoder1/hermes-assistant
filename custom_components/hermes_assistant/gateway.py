@@ -255,11 +255,27 @@ async def _iter_sse_content_deltas(
     content: aiohttp.StreamReader,
 ) -> AsyncIterator[str]:
     """Parse an OpenAI-compatible chat completion SSE stream into text deltas."""
+    event_type: str | None = None
     async for raw_line in content:
         line = raw_line.decode("utf-8", errors="replace").strip()
-        if not line or not line.startswith("data:"):
+        if not line:
+            event_type = None
+            continue
+        if line.startswith("event:"):
+            event_type = line[len("event:") :].strip() or None
+            continue
+        if not line.startswith("data:"):
             continue
         data = line[len("data:") :].strip()
+        if event_type == "hermes.tool.progress":
+            # Hermes emits tool lifecycle metadata as named SSE events. Home
+            # Assistant only consumes assistant text, so leave these events on
+            # the transport without interpreting them as OpenAI chunks.
+            continue
+        if event_type not in {None, "message"}:
+            raise HermesProtocolError(
+                f"Hermes returned unsupported stream event {event_type!r}"
+            )
         if data == "[DONE]":
             return
         try:
