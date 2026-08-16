@@ -291,6 +291,51 @@ async def test_stream_complete_yields_deltas_and_stops_on_done() -> None:
     assert request["headers"]["X-Hermes-Session-Key"] == "scope-a"
 
 
+async def test_stream_complete_ignores_hermes_tool_progress_events() -> None:
+    session = FakeSession(
+        FakeResponse(200, capabilities(chat_completions_streaming=True)),
+        FakeStreamResponse(
+            200,
+            [
+                b": keepalive\n",
+                b"\n",
+                b"event: hermes.tool.progress\n",
+                b'data: {"tool":"web_search","status":"running"}\n',
+                b"\n",
+                b'data: {"choices":[{"delta":{"content":"Found it"}}]}\n',
+                b"data: [DONE]\n",
+            ],
+        ),
+    )
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+
+    chunks = [
+        chunk
+        async for chunk in client.async_stream_complete(
+            [], session_id="a", session_key="a"
+        )
+    ]
+
+    assert chunks == ["Found it"]
+
+
+async def test_stream_complete_rejects_unknown_named_event() -> None:
+    session = FakeSession(
+        FakeResponse(200, capabilities(chat_completions_streaming=True)),
+        FakeStreamResponse(
+            200,
+            [b"event: hermes.future\n", b"data: {}\n"],
+        ),
+    )
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+
+    with pytest.raises(HermesProtocolError, match="unsupported stream event"):
+        async for _ in client.async_stream_complete(
+            [], session_id="a", session_key="a"
+        ):
+            pass
+
+
 async def test_stream_complete_rejects_terminal_error_finish_reason() -> None:
     session = FakeSession(
         FakeResponse(200, capabilities(chat_completions_streaming=True)),
