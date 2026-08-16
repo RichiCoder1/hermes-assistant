@@ -55,6 +55,7 @@
           "memory_scope": "Memory sharing"
         },
         "data_description": {
+          "timeout": "For streaming replies, this is the maximum time allowed to connect or wait between received chunks; it is not a total duration limit.",
           "memory_scope": "Choose how broadly Hermes may reuse memory. Conversation is the privacy-preserving default; see the implementation guide for exact behavior."
         }
       }

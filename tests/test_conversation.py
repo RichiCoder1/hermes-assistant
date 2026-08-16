@@ -12,13 +12,17 @@ from custom_components.hermes_assistant.conversation import (
     HermesConversationEntity,
     _stream_deltas,
 )
+from custom_components.hermes_assistant.gateway import HermesTimeoutError
 
 
 class FakeClient:
     """Record which completion path the entity selects."""
 
-    def __init__(self, *, supports_streaming: bool) -> None:
+    def __init__(
+        self, *, supports_streaming: bool, error: Exception | None = None
+    ) -> None:
         self.capabilities = SimpleNamespace(supports_streaming=supports_streaming)
+        self.error = error
         self.complete_calls: list[dict[str, Any]] = []
         self.stream_calls: list[dict[str, Any]] = []
 
@@ -32,6 +36,8 @@ class FakeClient:
         self, messages: list[dict[str, str]], **kwargs: Any
     ) -> AsyncIterator[str]:
         self.stream_calls.append({"messages": messages, **kwargs})
+        if self.error:
+            raise self.error
         yield "Hello"
         yield " there"
 
@@ -109,6 +115,21 @@ async def test_handle_message_falls_back_and_cleans_spoken_text() -> None:
     assert not client.stream_calls
     assert len(client.complete_calls) == 1
     assert chat_log.added[-1].content == "Hello there"
+
+
+async def test_handle_message_keeps_entity_available_after_timeout() -> None:
+    client = FakeClient(
+        supports_streaming=True,
+        error=HermesTimeoutError("Hermes request timed out after 10 seconds"),
+    )
+    entity = _entity(client)
+
+    result = await entity._async_handle_message(_user_input(), FakeChatLog())
+
+    assert result.response.error_message == (
+        "Hermes took too long to respond. Please try again."
+    )
+    assert not hasattr(entity, "_attr_available")
 
 
 async def test_stream_deltas_caps_cumulative_content() -> None:

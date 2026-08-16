@@ -94,6 +94,15 @@ class AssistantContent:
     content: str | None = None
 
 
+@dataclass
+class ConversationResult:
+    """Minimal conversation result value."""
+
+    response: object
+    conversation_id: str
+    continue_conversation: bool
+
+
 class ConverseError(Exception):
     """Import-only stand-in."""
 
@@ -183,6 +192,7 @@ aiohttp_client.async_get_clientsession = lambda hass: None
 conversation.ConversationEntity = ConversationEntity
 conversation.AbstractConversationAgent = AbstractConversationAgent
 conversation.AssistantContent = AssistantContent
+conversation.ConversationResult = ConversationResult
 conversation.ConverseError = ConverseError
 conversation.async_set_agent = lambda *args: None
 conversation.async_unset_agent = lambda *args: None

@@ -72,6 +72,13 @@ Home Assistant as they arrive and applies the configured limit cumulatively.
 Markdown and emoji are not removed mid-stream because safe cleanup requires the
 complete response, such as when matching code fences.
 
+For non-streaming requests, the configured request timeout limits the complete
+HTTP exchange. For streaming requests, it limits connection setup and the idle
+time between received chunks rather than the total stream duration. A streaming
+response that continues making progress may therefore run longer than the
+configured timeout. A conversation timeout is reported without marking the
+conversation entity unavailable, allowing a later request to retry immediately.
+
 ## Memory scoping
 
 Hermes distinguishes short-lived transcript continuity from long-term memory:

@@ -24,7 +24,12 @@ from .const import (
     DOMAIN,
 )
 from .device import gateway_device_info
-from .gateway import HermesAuthenticationError, HermesGatewayClient, HermesGatewayError
+from .gateway import (
+    HermesAuthenticationError,
+    HermesGatewayClient,
+    HermesGatewayError,
+    HermesTimeoutError,
+)
 from .transcript import (
     memory_session_key,
     messages_from_chat_log,
@@ -135,6 +140,15 @@ class HermesConversationEntity(
             self._entry.async_start_reauth(self.hass)
             return _error_result(
                 user_input, conversation_id, "Hermes authentication failed."
+            )
+        except HermesTimeoutError as err:
+            # A slow conversation does not mean the gateway is unavailable. Keep
+            # the entity usable so a transient timeout cannot block later retries.
+            _LOGGER.warning("Hermes conversation request timed out: %s", err)
+            return _error_result(
+                user_input,
+                conversation_id,
+                "Hermes took too long to respond. Please try again.",
             )
         except HermesGatewayError as err:
             self._attr_available = False

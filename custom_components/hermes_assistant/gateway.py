@@ -24,6 +24,10 @@ class HermesConnectionError(HermesGatewayError):
     """The gateway could not be reached."""
 
 
+class HermesTimeoutError(HermesConnectionError):
+    """The gateway did not respond within the configured timeout."""
+
+
 class HermesProtocolError(HermesGatewayError):
     """The gateway response did not match its public API contract."""
 
@@ -178,30 +182,42 @@ class HermesGatewayClient:
         if capabilities.session_key_header:
             headers[capabilities.session_key_header] = session_key
         request_headers = {**self._headers, **headers}
+        # A streaming response may legitimately take longer than the configured
+        # timeout while it keeps making progress. Apply the limit to connection
+        # setup and time between received chunks instead of to the total stream.
+        stream_timeout = aiohttp.ClientTimeout(
+            total=None,
+            connect=self.timeout,
+            sock_read=self.timeout,
+        )
 
         try:
-            async with asyncio.timeout(self.timeout):
-                async with self._session.request(
-                    "POST",
-                    self._url("/v1/chat/completions"),
-                    headers=request_headers,
-                    json={
-                        "model": capabilities.model,
-                        "messages": messages,
-                        "stream": True,
-                    },
-                ) as response:
-                    if response.status in {401, 403}:
-                        raise HermesAuthenticationError("Hermes rejected the API key")
-                    if response.status >= 400:
-                        raise HermesConnectionError(
-                            f"Hermes returned HTTP {response.status}"
-                        )
-                    async for delta in _iter_sse_content_deltas(response.content):
-                        yield delta
+            async with self._session.request(
+                "POST",
+                self._url("/v1/chat/completions"),
+                headers=request_headers,
+                json={
+                    "model": capabilities.model,
+                    "messages": messages,
+                    "stream": True,
+                },
+                timeout=stream_timeout,
+            ) as response:
+                if response.status in {401, 403}:
+                    raise HermesAuthenticationError("Hermes rejected the API key")
+                if response.status >= 400:
+                    raise HermesConnectionError(
+                        f"Hermes returned HTTP {response.status}"
+                    )
+                async for delta in _iter_sse_content_deltas(response.content):
+                    yield delta
         except HermesGatewayError:
             raise
-        except (TimeoutError, aiohttp.ClientError) as err:
+        except TimeoutError as err:
+            raise HermesTimeoutError(
+                f"Hermes request timed out after {self.timeout} seconds"
+            ) from err
+        except aiohttp.ClientError as err:
             raise HermesConnectionError("Unable to reach Hermes") from err
 
     async def async_health(self) -> GatewayHealth:
@@ -243,7 +259,11 @@ class HermesGatewayClient:
                         ) from err
         except HermesGatewayError:
             raise
-        except (TimeoutError, aiohttp.ClientError) as err:
+        except TimeoutError as err:
+            raise HermesTimeoutError(
+                f"Hermes request timed out after {self.timeout} seconds"
+            ) from err
+        except aiohttp.ClientError as err:
             raise HermesConnectionError("Unable to reach Hermes") from err
 
         if not isinstance(payload, dict):
