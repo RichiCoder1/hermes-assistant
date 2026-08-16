@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
+import aiohttp
 import pytest
 
 from custom_components.hermes_assistant.gateway import (
     HermesAuthenticationError,
     HermesGatewayClient,
     HermesProtocolError,
+    HermesTimeoutError,
     normalize_base_url,
 )
 
@@ -49,10 +51,24 @@ class FakeStreamContent:
         return self._lines.pop(0)
 
 
+class TimedOutStreamContent:
+    def __aiter__(self) -> TimedOutStreamContent:
+        return self
+
+    async def __anext__(self) -> bytes:
+        raise TimeoutError
+
+
 class FakeStreamResponse:
-    def __init__(self, status: int, lines: list[bytes]) -> None:
+    def __init__(
+        self,
+        status: int,
+        lines: list[bytes],
+        *,
+        content: FakeStreamContent | TimedOutStreamContent | None = None,
+    ) -> None:
         self.status = status
-        self.content = FakeStreamContent(lines)
+        self.content = content or FakeStreamContent(lines)
 
     async def __aenter__(self) -> FakeStreamResponse:
         return self
@@ -289,6 +305,25 @@ async def test_stream_complete_yields_deltas_and_stops_on_done() -> None:
     }
     assert request["headers"]["X-Hermes-Session-Id"] == "session-a"
     assert request["headers"]["X-Hermes-Session-Key"] == "scope-a"
+    timeout = request["timeout"]
+    assert isinstance(timeout, aiohttp.ClientTimeout)
+    assert timeout.total is None
+    assert timeout.connect == 10
+    assert timeout.sock_read == 10
+
+
+async def test_stream_complete_reports_idle_timeout() -> None:
+    session = FakeSession(
+        FakeResponse(200, capabilities(chat_completions_streaming=True)),
+        FakeStreamResponse(200, [], content=TimedOutStreamContent()),
+    )
+    client = HermesGatewayClient(session, "http://hermes:8642", "secret", timeout=10)
+
+    with pytest.raises(HermesTimeoutError, match="timed out after 10 seconds"):
+        async for _ in client.async_stream_complete(
+            [], session_id="a", session_key="a"
+        ):
+            pass
 
 
 async def test_stream_complete_rejects_terminal_error_finish_reason() -> None:
