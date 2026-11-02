@@ -6,11 +6,11 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-  "aiohttp==3.14.3",
+  "aiohttp==3.14.5",
   "pytest==9.1.1",
-  "pytest-asyncio==1.4.0",
-  "ruff==0.16.2",
-  "ty>=0.0.18",
+  "pytest-asyncio==1.4.1",
+  "ruff==0.17.2",
+  "ty>=0.0.92",
 ]
 
 [tool.uv]
